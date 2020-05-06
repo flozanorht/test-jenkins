@@ -6,6 +6,10 @@ def templateName = 'nodejs-mongodb-example'
 // and "openshift" directive/closure from the OpenShift Client Plugin for Jenkins.  Otherwise, the declarative pipeline engine
 // will not be fully engaged.
 pipeline {
+    // Jenkins runs in project "test-nobuild"
+    // and this pipeline creates resources at a different project named "test-nobuild2"
+    // from the "test-nobuild2" project, grant edit access to the Jenkins master
+    // $ oc policy add-role-to-user edit system:serviceaccount:test-nobuild:jenkins
     agent {
       node {
         // spin up a node.js slave pod to run this build on
@@ -22,7 +26,7 @@ pipeline {
             steps {
                 script {
                     openshift.withCluster() {
-                        openshift.withProject() {
+                        openshift.withProject("test-nobuild2") {
                             echo "Using project: ${openshift.project()}"
                         }
                     }
@@ -33,7 +37,7 @@ pipeline {
             steps {
                 script {
                     openshift.withCluster() {
-                        openshift.withProject() {
+                        openshift.withProject("test-nobuild2") {
                             // delete everything with this template label
                             openshift.selector("all", [ template : templateName ]).delete()
                             // delete any secrets with this template label
@@ -49,7 +53,7 @@ pipeline {
             steps {
                 script {
                     openshift.withCluster() {
-                        openshift.withProject() {
+                        openshift.withProject("test-nobuild2") {
                             // create a new application from the templatePath
                             openshift.newApp(templatePath)
                         }
@@ -61,7 +65,7 @@ pipeline {
             steps {
                 script {
                     openshift.withCluster() {
-                        openshift.withProject() {
+                        openshift.withProject("test-nobuild2") {
                             def builds = openshift.selector("bc", templateName).related('builds')
                             builds.untilEach(1) {
                                 return (it.object().status.phase == "Complete")
@@ -75,7 +79,7 @@ pipeline {
             steps {
                 script {
                     openshift.withCluster() {
-                        openshift.withProject() {
+                        openshift.withProject("test-nobuild2") {
                             def rm = openshift.selector("dc", templateName).rollout()
                             openshift.selector("dc", templateName).related('pods').untilEach(1) {
                                 return (it.object().status.phase == "Running")
@@ -89,7 +93,7 @@ pipeline {
             steps {
                 script {
                     openshift.withCluster() {
-                        openshift.withProject() {
+                        openshift.withProject("test-nobuild2") {
                             // if everything else succeeded, tag the ${templateName}:latest image as ${templateName}-staging:latest
                             // a pipeline build config for the staging environment can watch for the ${templateName}-staging:latest
                             // image to change and then deploy it to the staging environment
